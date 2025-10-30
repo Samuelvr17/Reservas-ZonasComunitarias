@@ -57,7 +57,14 @@ const LoginForm: React.FC = () => {
     const result = await login(trimmedIdentification, trimmedPassword);
 
     if (!result.success) {
+      const loginErrorMessage = 'Número de identificación o contraseña incorrectos.';
       setError(result.error ?? 'No se pudo iniciar sesión. Inténtalo nuevamente.');
+      setLoginErrors({
+        identificationNumber: loginErrorMessage,
+        password: loginErrorMessage
+      });
+      setLoading(false);
+      return;
     }
     setLoading(false);
   };

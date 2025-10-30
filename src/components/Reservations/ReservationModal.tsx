@@ -5,6 +5,7 @@ import { useReservations } from '../../context/ReservationContext';
 import { useAuth } from '../../context/AuthContext';
 import { Reservation } from '../../types';
 import { timeToMinutes, getTodayLocalISO, parseLocalDate } from '../../utils/dateUtils';
+import { useToast } from '../../hooks/useToast';
 
 interface ReservationModalProps {
   spaceId: string;
@@ -45,6 +46,7 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ spaceId, onClose, i
   const [existingReservations, setExistingReservations] = useState<Reservation[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   useEffect(() => {
     const today = getTodayLocalISO();
@@ -253,33 +255,54 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ spaceId, onClose, i
 
     if (success) {
       setSuccess(true);
-      setTimeout(() => {
-        onClose();
-      }, 2000);
+      addToast({ message: 'Reserva creada correctamente.', type: 'success' });
     } else {
       setError('No se pudo crear la reserva. El horario puede estar ocupado.');
     }
-    
+
     setLoading(false);
   };
 
   if (success) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg max-w-md w-full p-6 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 sm:p-8 text-center space-y-4">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
             <Calendar className="h-8 w-8 text-green-600" />
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
+          <h3 className="text-2xl font-bold text-gray-900">
             ¡Reserva Confirmada!
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-600 max-w-md mx-auto">
             Tu reserva para {space.name} ha sido confirmada exitosamente.
           </p>
-          <div className="bg-gray-50 rounded-lg p-4 text-left">
-            <p><strong>Fecha:</strong> {parseLocalDate(formData.date).toLocaleDateString('es-ES')}</p>
-            <p><strong>Horario:</strong> {formData.startTime} - {formData.endTime}</p>
-            <p><strong>Evento:</strong> {formData.event}</p>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-left space-y-2">
+            <p className="text-sm text-gray-700">
+              <span className="font-semibold text-gray-900">Fecha:</span> {parseLocalDate(formData.date).toLocaleDateString('es-ES')}
+            </p>
+            <p className="text-sm text-gray-700">
+              <span className="font-semibold text-gray-900">Horario:</span> {formData.startTime} - {formData.endTime}
+            </p>
+            <p className="text-sm text-gray-700">
+              <span className="font-semibold text-gray-900">Evento:</span> {formData.event}
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col sm:flex-row sm:justify-center sm:space-x-3 space-y-3 sm:space-y-0">
+            <button
+              onClick={() => {
+                setSuccess(false);
+                setError('');
+              }}
+              className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              Crear otra reserva
+            </button>
+            <button
+              onClick={onClose}
+              className="inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       </div>

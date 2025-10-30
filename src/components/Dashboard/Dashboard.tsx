@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Clock, MapPin, Users, UserCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, UserCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSpaces } from '../../context/SpaceContext';
 import { useReservations } from '../../context/ReservationContext';
 import { formatDate, isToday, isTomorrow, parseLocalDate } from '../../utils/dateUtils';
 import { supabase } from '../../lib/supabase';
+import EmptyState from '../Common/EmptyState';
 
 interface DashboardProps {
   onViewChange: (view: string) => void;
@@ -130,14 +131,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <div key={index} className="bg-white rounded-lg shadow p-6">
+            <div key={index} className="bg-white rounded-xl shadow-sm hover:shadow-md smooth-transition p-6 border border-gray-100">
               <div className="flex items-center">
-                <div className={`p-3 rounded-full ${getStatColor(stat.color)}`}>
+                <div className={`p-3 rounded-xl ${getStatColor(stat.color)} shadow-sm`}>
                   <Icon className="h-6 w-6 text-white" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-sm font-medium text-gray-500">{stat.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
                 </div>
               </div>
             </div>
@@ -147,76 +148,101 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Acciones Rápidas</h2>
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-xl font-bold text-gray-900 mb-5">Acciones Rápidas</h2>
           <div className="space-y-3">
             <button
               onClick={() => onViewChange('spaces')}
-              className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all"
+              className="w-full text-left p-4 rounded-xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50 smooth-transition group"
             >
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 text-blue-600 mr-3" />
-                <div>
-                  <h3 className="font-medium text-gray-900">Ver Espacios</h3>
-                  <p className="text-sm text-gray-500">Explora los espacios disponibles</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-lg bg-blue-100 group-hover:bg-blue-200 smooth-transition">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-semibold text-gray-900">Ver Espacios</h3>
+                    <p className="text-sm text-gray-500">Explora los espacios disponibles</p>
+                  </div>
                 </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 smooth-transition" />
               </div>
             </button>
 
             <button
               onClick={() => onViewChange('calendar')}
-              className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-sky-500 hover:bg-sky-50 transition-all"
+              className="w-full text-left p-4 rounded-xl border-2 border-gray-100 hover:border-sky-500 hover:bg-sky-50 smooth-transition group"
             >
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 text-sky-600 mr-3" />
-                <div>
-                  <h3 className="font-medium text-gray-900">Calendario de reservas</h3>
-                  <p className="text-sm text-gray-500">Visualiza disponibilidad mensual y semanal</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-lg bg-sky-100 group-hover:bg-sky-200 smooth-transition">
+                    <Calendar className="h-5 w-5 text-sky-600" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-semibold text-gray-900">Calendario de reservas</h3>
+                    <p className="text-sm text-gray-500">Visualiza disponibilidad mensual y semanal</p>
+                  </div>
                 </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-sky-600 smooth-transition" />
               </div>
             </button>
 
             <button
               onClick={() => onViewChange(user.role === 'admin' ? 'all-reservations' : 'my-reservations')}
-              className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all"
+              className="w-full text-left p-4 rounded-xl border-2 border-gray-100 hover:border-green-500 hover:bg-green-50 smooth-transition group"
             >
-              <div className="flex items-center">
-                <Clock className="h-5 w-5 text-green-600 mr-3" />
-                <div>
-                  <h3 className="font-medium text-gray-900">
-                    {user.role === 'admin' ? 'Gestionar Reservas' : 'Mis Reservas'}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {user.role === 'admin' ? 'Ver todas las reservas del sistema' : 'Administra tus reservas'}
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-lg bg-green-100 group-hover:bg-green-200 smooth-transition">
+                    <Clock className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-semibold text-gray-900">
+                      {user.role === 'admin' ? 'Gestionar Reservas' : 'Mis Reservas'}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {user.role === 'admin' ? 'Ver todas las reservas del sistema' : 'Administra tus reservas'}
+                    </p>
+                  </div>
                 </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-green-600 smooth-transition" />
               </div>
             </button>
 
             <button
               onClick={() => onViewChange('profile')}
-              className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all"
+              className="w-full text-left p-4 rounded-xl border-2 border-gray-100 hover:border-slate-500 hover:bg-slate-50 smooth-transition group"
             >
-              <div className="flex items-center">
-                <UserCircle className="h-5 w-5 text-indigo-600 mr-3" />
-                <div>
-                  <h3 className="font-medium text-gray-900">Mi Perfil</h3>
-                  <p className="text-sm text-gray-500">Actualiza tus datos personales y de contacto</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="p-2 rounded-lg bg-slate-100 group-hover:bg-slate-200 smooth-transition">
+                    <UserCircle className="h-5 w-5 text-slate-600" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="font-semibold text-gray-900">Mi Perfil</h3>
+                    <p className="text-sm text-gray-500">Actualiza tus datos personales y de contacto</p>
+                  </div>
                 </div>
+                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-slate-600 smooth-transition" />
               </div>
             </button>
 
             {user.role === 'admin' && (
               <button
                 onClick={() => onViewChange('admin-panel')}
-                className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all"
+                className="w-full text-left p-4 rounded-xl border-2 border-gray-100 hover:border-amber-500 hover:bg-amber-50 smooth-transition group"
               >
-                <div className="flex items-center">
-                  <Users className="h-5 w-5 text-purple-600 mr-3" />
-                  <div>
-                    <h3 className="font-medium text-gray-900">Panel Administrativo</h3>
-                    <p className="text-sm text-gray-500">Gestionar espacios y configuración</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-lg bg-amber-100 group-hover:bg-amber-200 smooth-transition">
+                      <Users className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="font-semibold text-gray-900">Panel Administrativo</h3>
+                      <p className="text-sm text-gray-500">Gestionar espacios y configuración</p>
+                    </div>
                   </div>
+                  <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-amber-600 smooth-transition" />
                 </div>
               </button>
             )}
@@ -224,8 +250,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-xl font-bold text-gray-900 mb-5">
             {user.role === 'admin' ? 'Actividad Reciente' : 'Próximas Reservas'}
           </h2>
           
@@ -250,9 +276,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 </div>
               ))}
               {todayReservations.length === 0 && (
-                <p className="text-gray-500 text-center py-4">
-                  No hay reservas para hoy
-                </p>
+                <EmptyState
+                  icon={Calendar}
+                  title="Sin actividad hoy"
+                  description="No hay reservas programadas para hoy"
+                />
               )}
             </div>
           ) : (
@@ -278,16 +306,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewChange }) => {
                 </div>
               ))}
               {upcomingReservations.length === 0 && (
-                <div className="text-center py-6">
-                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500">No tienes reservas próximas</p>
-                  <button
-                    onClick={() => onViewChange('spaces')}
-                    className="mt-2 text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    Hacer una reserva
-                  </button>
-                </div>
+                <EmptyState
+                  icon={Calendar}
+                  title="No tienes reservas próximas"
+                  description="Explora los espacios disponibles y haz tu primera reserva"
+                  actionLabel="Explorar espacios"
+                  onAction={() => onViewChange('spaces')}
+                />
               )}
             </div>
           )}

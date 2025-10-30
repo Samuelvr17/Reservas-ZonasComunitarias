@@ -13,20 +13,17 @@ import ReportsPanel from './components/Admin/ReportsPanel';
 import AdvancedSettings from './components/Admin/AdvancedSettings';
 import ProfileSettings from './components/Profile/ProfileSettings';
 import CalendarView from './pages/CalendarView';
+import ToastContainer from './components/Common/ToastContainer';
+import LoadingSpinner from './components/Common/LoadingSpinner';
+import { useToast } from './hooks/useToast';
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
+  const { toasts, addToast, removeToast } = useToast();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen message="Cargando aplicación..." />;
   }
 
   if (!user) {
@@ -82,8 +79,9 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       <Header currentView={currentView} onViewChange={setCurrentView} />
-      <main>
+      <main className="animate-fade-in">
         {renderCurrentView()}
       </main>
     </div>

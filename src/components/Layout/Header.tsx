@@ -1,5 +1,5 @@
-import React from 'react';
-import { User, LogOut, Settings, Calendar, Home, UserCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, LogOut, Settings, Calendar, Home, UserCircle, Menu, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
@@ -9,8 +9,14 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ currentView, onViewChange }) => {
   const { user, logout } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (!user) return null;
+
+  const handleNavigation = (view: string) => {
+    onViewChange(view);
+    setMobileMenuOpen(false);
+  };
 
   const navigationItems = user.role === 'admin'
     ? [
@@ -41,17 +47,17 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange }) => {
               </h1>
             </div>
 
-            <nav className="hidden md:flex space-x-6">
+            <nav className="hidden md:flex space-x-2">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <button
                     key={item.id}
-                    onClick={() => onViewChange(item.id)}
-                    className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    onClick={() => handleNavigation(item.id)}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium smooth-transition ${
                       currentView === item.id
-                        ? 'text-blue-600 bg-blue-50'
-                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                        ? 'text-blue-600 bg-blue-50 shadow-sm'
+                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -62,54 +68,87 @@ const Header: React.FC<HeaderProps> = ({ currentView, onViewChange }) => {
             </nav>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                user.role === 'admin' 
-                  ? 'bg-purple-100 text-purple-800' 
-                  : 'bg-green-100 text-green-800'
+          <div className="flex items-center space-x-3">
+            <div className="hidden lg:flex items-center space-x-3">
+              <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                user.role === 'admin'
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-emerald-100 text-emerald-800'
               }`}>
                 {user.role === 'admin' ? 'Administrador' : 'Usuario'}
               </div>
-              <User className="h-5 w-5 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">
-                {user.fullName}
-              </span>
+              <div className="flex items-center space-x-2">
+                <User className="h-5 w-5 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">
+                  {user.fullName}
+                </span>
+              </div>
             </div>
 
             <button
               onClick={logout}
-              className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 transition-colors"
+              className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 smooth-transition"
             >
               <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Salir</span>
+              <span>Salir</span>
+            </button>
+
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100 smooth-transition"
+            >
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
       </div>
 
       {/* Mobile Navigation */}
-      <div className="md:hidden border-t border-gray-200">
-        <div className="px-4 py-2 space-y-1">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            return (
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-gray-200 bg-white animate-fade-in">
+          <div className="px-4 py-3">
+            <div className="mb-3 pb-3 border-b border-gray-200">
+              <div className="flex items-center space-x-2 mb-2">
+                <User className="h-5 w-5 text-gray-500" />
+                <span className="text-sm font-medium text-gray-900">{user.fullName}</span>
+              </div>
+              <div className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                user.role === 'admin'
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-emerald-100 text-emerald-800'
+              }`}>
+                {user.role === 'admin' ? 'Administrador' : 'Usuario'}
+              </div>
+            </div>
+            <div className="space-y-1">
+              {navigationItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavigation(item.id)}
+                    className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-sm font-medium smooth-transition ${
+                      currentView === item.id
+                        ? 'text-blue-600 bg-blue-50'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
               <button
-                key={item.id}
-                onClick={() => onViewChange(item.id)}
-                className={`flex items-center space-x-2 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  currentView === item.id
-                    ? 'text-blue-600 bg-blue-50'
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                }`}
+                onClick={logout}
+                className="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 smooth-transition"
               >
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
+                <LogOut className="h-5 w-5" />
+                <span>Cerrar Sesión</span>
               </button>
-            );
-          })}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </header>
   );
 };

@@ -2,13 +2,18 @@ import React, { useState } from 'react';
 import { Calendar, Eye, EyeOff, User, UserPlus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { RegisterData } from '../../types';
+import { useToast } from '../../hooks/useToast';
 
 const LoginForm: React.FC = () => {
   const { login, register } = useAuth();
+  const { addToast } = useToast();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [loginErrors, setLoginErrors] = useState<{ identificationNumber?: string; password?: string }>({});
+  const [registerErrors, setRegisterErrors] =
+    useState<Partial<Record<keyof RegisterData, string>>>({});
 
   const [loginData, setLoginData] = useState({
     identificationNumber: '',
@@ -28,10 +33,28 @@ const LoginForm: React.FC = () => {
     setLoading(true);
     setError('');
 
-    const result = await login(
-      loginData.identificationNumber,
-      loginData.password
-    );
+    const trimmedIdentification = loginData.identificationNumber.trim();
+    const trimmedPassword = loginData.password.trim();
+
+    const newErrors: { identificationNumber?: string; password?: string } = {};
+
+    if (!trimmedIdentification) {
+      newErrors.identificationNumber = 'Ingresa tu número de identificación.';
+    }
+
+    if (!trimmedPassword) {
+      newErrors.password = 'Ingresa tu contraseña.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setLoginErrors(newErrors);
+      setLoading(false);
+      return;
+    }
+
+    setLoginErrors({});
+
+    const result = await login(trimmedIdentification, trimmedPassword);
 
     if (!result.success) {
       setError(result.error ?? 'No se pudo iniciar sesión. Inténtalo nuevamente.');
@@ -52,49 +75,61 @@ const LoginForm: React.FC = () => {
       password: registerData.password
     };
 
-    if (
-      !trimmedData.fullName ||
-      !trimmedData.email ||
-      !trimmedData.identificationNumber ||
-      !trimmedData.phone ||
-      !trimmedData.password
-    ) {
-      setError('Todos los campos son obligatorios');
-      setLoading(false);
-      return;
+    const newErrors: Partial<Record<keyof RegisterData, string>> = {};
+
+    if (!trimmedData.fullName) {
+      newErrors.fullName = 'Ingresa tu nombre completo.';
+    }
+
+    if (!trimmedData.email) {
+      newErrors.email = 'Ingresa tu correo electrónico.';
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedData.email)) {
-      setError('Ingresa un correo electrónico válido.');
+    if (trimmedData.email && !emailRegex.test(trimmedData.email)) {
+      newErrors.email = 'Ingresa un correo electrónico válido.';
+    }
+
+    if (!trimmedData.identificationNumber) {
+      newErrors.identificationNumber = 'Ingresa tu número de identificación.';
+    } else {
+      const idNumberDigits = trimmedData.identificationNumber.replace(/\D/g, '');
+      if (idNumberDigits.length < 6) {
+        newErrors.identificationNumber = 'El número de identificación debe tener al menos 6 dígitos.';
+      }
+    }
+
+    if (!trimmedData.phone) {
+      newErrors.phone = 'Ingresa tu número de teléfono.';
+    } else {
+      const phoneDigits = trimmedData.phone.replace(/\D/g, '');
+      if (phoneDigits.length < 7) {
+        newErrors.phone = 'Ingresa un número de teléfono válido.';
+      }
+    }
+
+    if (!trimmedData.password) {
+      newErrors.password = 'Ingresa una contraseña.';
+    } else if (trimmedData.password.length < 6) {
+      newErrors.password = 'La contraseña debe tener al menos 6 caracteres.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setRegisterErrors(newErrors);
       setLoading(false);
       return;
     }
 
-    const idNumberDigits = trimmedData.identificationNumber.replace(/\D/g, '');
-    if (idNumberDigits.length < 6) {
-      setError('El número de identificación debe tener al menos 6 dígitos.');
-      setLoading(false);
-      return;
-    }
-
-    const phoneDigits = trimmedData.phone.replace(/\D/g, '');
-    if (phoneDigits.length < 7) {
-      setError('Ingresa un número de teléfono válido.');
-      setLoading(false);
-      return;
-    }
-
-    if (trimmedData.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
-      setLoading(false);
-      return;
-    }
+    setRegisterErrors({});
 
     const result = await register(trimmedData);
     if (!result.success) {
       setError(result.error ?? 'No se pudo crear la cuenta.');
+      setLoading(false);
+      return;
     }
+    addToast({ message: 'Cuenta creada con éxito. Ahora puedes iniciar sesión.', type: 'success' });
+    setIsLogin(true);
     setLoading(false);
   };
 
@@ -151,13 +186,23 @@ const LoginForm: React.FC = () => {
               <input
                 type="text"
                 value={loginData.identificationNumber}
-                onChange={(e) =>
-                  setLoginData({ ...loginData, identificationNumber: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setLoginData({ ...loginData, identificationNumber: value });
+                  setLoginErrors((prev) => ({ ...prev, identificationNumber: undefined }));
+                }}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  loginErrors.identificationNumber
+                    ? 'border-red-400 focus:ring-red-200'
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
                 placeholder="Ingrese su número de identificación"
                 required
+                aria-invalid={Boolean(loginErrors.identificationNumber)}
               />
+              {loginErrors.identificationNumber && (
+                <p className="mt-1 text-sm text-red-600">{loginErrors.identificationNumber}</p>
+              )}
             </div>
 
             <div>
@@ -168,10 +213,19 @@ const LoginForm: React.FC = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={loginData.password}
-                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setLoginData({ ...loginData, password: value });
+                    setLoginErrors((prev) => ({ ...prev, password: undefined }));
+                  }}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    loginErrors.password
+                      ? 'border-red-400 focus:ring-red-200'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
                   placeholder="Ingrese su contraseña"
                   required
+                  aria-invalid={Boolean(loginErrors.password)}
                 />
                 <button
                   type="button"
@@ -181,6 +235,9 @@ const LoginForm: React.FC = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {loginErrors.password && (
+                <p className="mt-1 text-sm text-red-600">{loginErrors.password}</p>
+              )}
             </div>
 
             <button
@@ -201,12 +258,24 @@ const LoginForm: React.FC = () => {
               <input
                 type="text"
                 value={registerData.fullName}
-                onChange={(e) => setRegisterData({ ...registerData, fullName: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setRegisterData({ ...registerData, fullName: value });
+                  setRegisterErrors((prev) => ({ ...prev, fullName: undefined }));
+                }}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  registerErrors.fullName
+                    ? 'border-red-400 focus:ring-red-200'
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
                 placeholder="Ej: Juan Pérez"
                 autoComplete="name"
                 required
+                aria-invalid={Boolean(registerErrors.fullName)}
               />
+              {registerErrors.fullName && (
+                <p className="mt-1 text-sm text-red-600">{registerErrors.fullName}</p>
+              )}
             </div>
 
             <div>
@@ -216,15 +285,27 @@ const LoginForm: React.FC = () => {
               <input
                 type="email"
                 value={registerData.email}
-                onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setRegisterData({ ...registerData, email: value });
+                  setRegisterErrors((prev) => ({ ...prev, email: undefined }));
+                }}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  registerErrors.email
+                    ? 'border-red-400 focus:ring-red-200'
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
                 placeholder="correo@ejemplo.com"
                 autoComplete="email"
                 required
+                aria-invalid={Boolean(registerErrors.email)}
               />
               <p className="mt-1 text-xs text-gray-500">
                 Se almacena solo como dato de contacto; la autenticación usa un correo sintético basado en la identificación.
               </p>
+              {registerErrors.email && (
+                <p className="mt-1 text-sm text-red-600">{registerErrors.email}</p>
+              )}
             </div>
 
             <div>
@@ -234,15 +315,25 @@ const LoginForm: React.FC = () => {
               <input
                 type="text"
                 value={registerData.identificationNumber}
-                onChange={(e) =>
-                  setRegisterData({ ...registerData, identificationNumber: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setRegisterData({ ...registerData, identificationNumber: value });
+                  setRegisterErrors((prev) => ({ ...prev, identificationNumber: undefined }));
+                }}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  registerErrors.identificationNumber
+                    ? 'border-red-400 focus:ring-red-200'
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
                 placeholder="1234567890"
                 inputMode="numeric"
                 autoComplete="off"
                 required
+                aria-invalid={Boolean(registerErrors.identificationNumber)}
               />
+              {registerErrors.identificationNumber && (
+                <p className="mt-1 text-sm text-red-600">{registerErrors.identificationNumber}</p>
+              )}
             </div>
 
             <div>
@@ -252,12 +343,24 @@ const LoginForm: React.FC = () => {
               <input
                 type="tel"
                 value={registerData.phone}
-                onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setRegisterData({ ...registerData, phone: value });
+                  setRegisterErrors((prev) => ({ ...prev, phone: undefined }));
+                }}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  registerErrors.phone
+                    ? 'border-red-400 focus:ring-red-200'
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
                 placeholder="+57 300 123 4567"
                 autoComplete="tel"
                 required
+                aria-invalid={Boolean(registerErrors.phone)}
               />
+              {registerErrors.phone && (
+                <p className="mt-1 text-sm text-red-600">{registerErrors.phone}</p>
+              )}
             </div>
 
             <div>
@@ -268,11 +371,20 @@ const LoginForm: React.FC = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={registerData.password}
-                  onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setRegisterData({ ...registerData, password: value });
+                    setRegisterErrors((prev) => ({ ...prev, password: undefined }));
+                  }}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    registerErrors.password
+                      ? 'border-red-400 focus:ring-red-200'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
                   placeholder="Mínimo 6 caracteres"
                   required
                   minLength={6}
+                  aria-invalid={Boolean(registerErrors.password)}
                 />
                 <button
                   type="button"
@@ -282,6 +394,9 @@ const LoginForm: React.FC = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {registerErrors.password && (
+                <p className="mt-1 text-sm text-red-600">{registerErrors.password}</p>
+              )}
             </div>
 
             <button

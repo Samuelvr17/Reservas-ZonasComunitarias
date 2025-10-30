@@ -13,14 +13,12 @@ import ReportsPanel from './components/Admin/ReportsPanel';
 import AdvancedSettings from './components/Admin/AdvancedSettings';
 import ProfileSettings from './components/Profile/ProfileSettings';
 import CalendarView from './pages/CalendarView';
-import ToastContainer from './components/Common/ToastContainer';
 import LoadingSpinner from './components/Common/LoadingSpinner';
-import { useToast } from './hooks/useToast';
+import { ToastProvider } from './hooks/useToast';
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
   const [currentView, setCurrentView] = useState('dashboard');
-  const { toasts, addToast, removeToast } = useToast();
 
   if (isLoading) {
     return <LoadingSpinner fullScreen message="Cargando aplicación..." />;
@@ -79,7 +77,6 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
       <Header currentView={currentView} onViewChange={setCurrentView} />
       <main className="animate-fade-in">
         {renderCurrentView()}
@@ -90,13 +87,15 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <SpaceProvider>
-        <ReservationProvider>
-          <AppContent />
-        </ReservationProvider>
-      </SpaceProvider>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <SpaceProvider>
+          <ReservationProvider>
+            <AppContent />
+          </ReservationProvider>
+        </SpaceProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 };
 

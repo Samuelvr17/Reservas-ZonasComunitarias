@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Space, SpaceContextType } from '../types';
+import { PaymentMethod, Space, SpaceContextType } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -18,6 +18,8 @@ type SupabaseSpaceRecord = {
   rules: string[] | null;
   is_active: boolean;
   image_url: string | null;
+  requires_payment: boolean;
+  payment_methods: { label?: string; accountNumber?: string; account_number?: string }[] | null;
 };
 
 export const useSpaces = () => {
@@ -37,6 +39,14 @@ export const SpaceProvider: React.FC<SpaceProviderProps> = ({ children }) => {
   const [spacesError, setSpacesError] = useState<string | null>(null);
   const [isLoadingSpaces, setIsLoadingSpaces] = useState<boolean>(false);
   const { user, isLoading } = useAuth();
+
+  const sanitizePaymentMethods = (methods?: PaymentMethod[]) =>
+    (methods ?? [])
+      .map(method => ({
+        label: method.label.trim(),
+        accountNumber: method.accountNumber.trim()
+      }))
+      .filter(method => method.label !== '' || method.accountNumber !== '');
 
   const loadSpaces = useCallback(async () => {
     if (!user) {
@@ -89,7 +99,12 @@ export const SpaceProvider: React.FC<SpaceProviderProps> = ({ children }) => {
           },
           rules: space.rules || [],
           isActive: space.is_active,
-          imageUrl: space.image_url || undefined
+          imageUrl: space.image_url || undefined,
+          requiresPayment: Boolean(space.requires_payment),
+          paymentMethods: (space.payment_methods ?? []).map((method): PaymentMethod => ({
+            label: method.label ?? '',
+            accountNumber: method.accountNumber ?? method.account_number ?? ''
+          })).filter(method => method.label.trim() !== '' || method.accountNumber.trim() !== '')
         }));
         setSpaces(formattedSpaces);
       } else {
@@ -152,7 +167,9 @@ export const SpaceProvider: React.FC<SpaceProviderProps> = ({ children }) => {
         operating_hours_end: spaceData.operatingHours.end,
         rules: spaceData.rules,
         is_active: spaceData.isActive,
-        image_url: spaceData.imageUrl
+        image_url: spaceData.imageUrl,
+        requires_payment: spaceData.requiresPayment,
+        payment_methods: sanitizePaymentMethods(spaceData.paymentMethods)
       });
 
     if (error) {
@@ -177,6 +194,10 @@ export const SpaceProvider: React.FC<SpaceProviderProps> = ({ children }) => {
     if (spaceData.rules !== undefined) updateData.rules = spaceData.rules;
     if (spaceData.isActive !== undefined) updateData.is_active = spaceData.isActive;
     if (spaceData.imageUrl !== undefined) updateData.image_url = spaceData.imageUrl;
+    if (spaceData.requiresPayment !== undefined) updateData.requires_payment = spaceData.requiresPayment;
+    if (spaceData.paymentMethods !== undefined) {
+      updateData.payment_methods = sanitizePaymentMethods(spaceData.paymentMethods);
+    }
 
     const { error } = await supabase
       .from('spaces')

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Users, Clock, Calendar, Edit, Trash2 } from 'lucide-react';
+import { MapPin, Users, Clock, Calendar, Edit, Trash2, CreditCard } from 'lucide-react';
 import { Space } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
@@ -102,6 +102,29 @@ const SpaceCard: React.FC<SpaceCardProps> = ({ space, onReserve, onEdit, onDelet
             </span>
           </div>
         </div>
+
+        {space.requiresPayment && (
+          <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+            <div className="flex items-center mb-3">
+              <CreditCard className="h-4 w-4 text-blue-600 mr-2" />
+              <h4 className="text-sm font-semibold text-blue-800">Este espacio requiere pago previo</h4>
+            </div>
+            {space.paymentMethods.length > 0 ? (
+              <ul className="text-xs text-blue-800 space-y-2">
+                {space.paymentMethods.map((method, index) => (
+                  <li key={`${method.label}-${index}`} className="flex flex-col">
+                    <span className="font-medium">{method.label}</span>
+                    <span className="font-mono tracking-wide">{method.accountNumber}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-blue-700">
+                Comunícate con la administración para conocer los métodos de pago disponibles.
+              </p>
+            )}
+          </div>
+        )}
 
         {space.rules && space.rules.length > 0 && (
           <div className="mb-4">

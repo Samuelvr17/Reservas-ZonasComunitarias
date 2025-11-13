@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Reservation, ReservationContextType } from '../types';
+import { PaymentStatus, Reservation, ReservationContextType } from '../types';
 import { supabase } from '../lib/supabase';
 import { timeToMinutes } from '../utils/dateUtils';
 import { useAuth } from './AuthContext';
@@ -114,7 +114,12 @@ export const ReservationProvider: React.FC<ReservationProviderProps> = ({ childr
           endTime: reservation.end_time,
           event: reservation.event ?? '',
           status: reservation.status as any,
-          createdAt: reservation.created_at
+          createdAt: reservation.created_at,
+          requiresPayment: reservation.requires_payment ?? false,
+          paymentStatus: (reservation.payment_status as PaymentStatus) ?? 'not_required',
+          paymentProofUrl: reservation.payment_proof_url ?? undefined,
+          paymentVerifiedAt: reservation.payment_verified_at,
+          paymentVerifiedBy: reservation.payment_verified_by,
         };
       });
       setReservations(formattedReservations);
@@ -147,10 +152,12 @@ export const ReservationProvider: React.FC<ReservationProviderProps> = ({ childr
     };
   }, [isAuthLoading, loadReservations, user]);
 
-  const addReservation = async (reservationData: Omit<Reservation, 'id' | 'createdAt' | 'status'>): Promise<boolean> => {
+  const addReservation = async (reservationData: Parameters<ReservationContextType['addReservation']>[0]): Promise<boolean> => {
     if (!await isTimeSlotAvailable(reservationData.spaceId, reservationData.date, reservationData.startTime, reservationData.endTime)) {
       return false;
     }
+
+    const paymentStatus: PaymentStatus = reservationData.requiresPayment ? 'pending' : 'not_required';
 
     const { error } = await supabase
       .from('reservations')
@@ -161,7 +168,12 @@ export const ReservationProvider: React.FC<ReservationProviderProps> = ({ childr
         start_time: reservationData.startTime,
         end_time: reservationData.endTime,
         event: reservationData.event,
-        status: 'confirmed'
+        status: 'confirmed',
+        requires_payment: reservationData.requiresPayment,
+        payment_status: paymentStatus,
+        payment_proof_url: null,
+        payment_verified_at: null,
+        payment_verified_by: null,
       });
 
     if (!error) {
@@ -248,10 +260,79 @@ export const ReservationProvider: React.FC<ReservationProviderProps> = ({ childr
         endTime: reservation.end_time,
         event: reservation.event ?? '',
         status: reservation.status as Reservation['status'],
-        createdAt: reservation.created_at
+        createdAt: reservation.created_at,
+        requiresPayment: reservation.requires_payment ?? false,
+        paymentStatus: (reservation.payment_status as PaymentStatus) ?? 'not_required',
+        paymentProofUrl: reservation.payment_proof_url ?? undefined,
+        paymentVerifiedAt: reservation.payment_verified_at,
+        paymentVerifiedBy: reservation.payment_verified_by,
       };
     });
   }, [user?.role]);
+
+  const uploadPaymentProof = async (reservationId: string, file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop() ?? 'jpg';
+    const sanitizedExt = fileExt.replace(/[^a-zA-Z0-9]/g, '') || 'jpg';
+    const fileName = `${reservationId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${sanitizedExt}`;
+
+    const { error } = await supabase.storage
+      .from('payment-proofs')
+      .upload(fileName, file, {
+        upsert: true,
+        contentType: file.type || 'image/jpeg'
+      });
+
+    if (error) {
+      console.error('Error uploading payment proof:', error);
+      throw new Error(error.message || 'No se pudo subir el comprobante de pago.');
+    }
+
+    const { data } = supabase.storage.from('payment-proofs').getPublicUrl(fileName);
+
+    if (!data?.publicUrl) {
+      throw new Error('No se pudo obtener la URL del comprobante de pago.');
+    }
+
+    return data.publicUrl;
+  };
+
+  const updateReservationPayment = async (
+    id: string,
+    updates: { paymentStatus?: PaymentStatus; paymentProofUrl?: string | null }
+  ) => {
+    const payload: Record<string, unknown> = {};
+
+    if (updates.paymentStatus !== undefined) {
+      payload.payment_status = updates.paymentStatus;
+      if (updates.paymentStatus === 'verified') {
+        payload.payment_verified_at = new Date().toISOString();
+        payload.payment_verified_by = user?.id ?? null;
+      } else {
+        payload.payment_verified_at = null;
+        payload.payment_verified_by = null;
+      }
+    }
+
+    if (updates.paymentProofUrl !== undefined) {
+      payload.payment_proof_url = updates.paymentProofUrl;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('reservations')
+      .update(payload)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating reservation payment info:', error);
+      throw new Error(error.message || 'No se pudo actualizar el estado de pago.');
+    }
+
+    await loadReservations();
+  };
 
   const isTimeSlotAvailable = async (spaceId: string, date: string, startTime: string, endTime: string): Promise<boolean> => {
     const { data } = await supabase
@@ -291,7 +372,9 @@ export const ReservationProvider: React.FC<ReservationProviderProps> = ({ childr
     maxAdvanceDays,
     maxConcurrentReservations,
     isSettingsLoading,
-    settingsError
+    settingsError,
+    updateReservationPayment,
+    uploadPaymentProof
   };
 
   return (

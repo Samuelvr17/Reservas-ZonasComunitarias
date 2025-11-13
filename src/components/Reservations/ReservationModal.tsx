@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, User, Save } from 'lucide-react';
+import { X, Calendar, Clock, User, Save, CreditCard } from 'lucide-react';
 import { useSpaces } from '../../context/SpaceContext';
 import { useReservations } from '../../context/ReservationContext';
 import { useAuth } from '../../context/AuthContext';
@@ -41,6 +41,7 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ spaceId, onClose, i
     startTime: initialStartTime ?? '',
     endTime: initialEndTime ?? '',
     event: '',
+    acknowledgePayment: false,
   });
 
   const [existingReservations, setExistingReservations] = useState<Reservation[]>([]);
@@ -58,8 +59,9 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ spaceId, onClose, i
       })(),
       startTime: initialStartTime ?? prev.startTime,
       endTime: initialEndTime ?? prev.endTime,
+      acknowledgePayment: space?.requiresPayment ? prev.acknowledgePayment : false,
     }));
-  }, [initialDate, initialStartTime, initialEndTime, spaceId]);
+  }, [initialDate, initialStartTime, initialEndTime, spaceId, space?.requiresPayment]);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -239,6 +241,12 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ spaceId, onClose, i
       }
     }
 
+    if (space.requiresPayment && !formData.acknowledgePayment) {
+      setError('Debes confirmar que realizarás el pago y enviarás el comprobante.');
+      setLoading(false);
+      return;
+    }
+
     const reservationData = {
       spaceId: space.id,
       spaceName: space.name,
@@ -249,6 +257,7 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ spaceId, onClose, i
       startTime: formData.startTime,
       endTime: formData.endTime,
       event: formData.event,
+      requiresPayment: space.requiresPayment,
     };
 
     const success = await addReservation(reservationData);
@@ -276,6 +285,14 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ spaceId, onClose, i
           <p className="text-gray-600 max-w-md mx-auto">
             Tu reserva para {space.name} ha sido confirmada exitosamente.
           </p>
+          {space.requiresPayment && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+              <h4 className="text-sm font-semibold text-blue-800 mb-2">Recuerda completar tu pago</h4>
+              <p className="text-sm text-blue-700">
+                Esta reserva continuará en estado pendiente hasta que el administrador valide tu comprobante de pago. Envía el comprobante lo antes posible para garantizar la confirmación definitiva.
+              </p>
+            </div>
+          )}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-left space-y-2">
             <p className="text-sm text-gray-700">
               <span className="font-semibold text-gray-900">Fecha:</span> {parseLocalDate(formData.date).toLocaleDateString('es-ES')}
@@ -292,6 +309,10 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ spaceId, onClose, i
               onClick={() => {
                 setSuccess(false);
                 setError('');
+                setFormData(prev => ({
+                  ...prev,
+                  acknowledgePayment: false,
+                }));
               }}
               className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
@@ -403,6 +424,51 @@ const ReservationModal: React.FC<ReservationModalProps> = ({ spaceId, onClose, i
               required
             />
           </div>
+
+          {space.requiresPayment && (
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4 space-y-3">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <CreditCard className="h-4 w-4 text-blue-600" />
+                  </div>
+                </div>
+                <div className="text-sm text-blue-800">
+                  <p className="font-semibold">Este espacio requiere pago para confirmar la reserva.</p>
+                  <p>
+                    Realiza el pago antes de la fecha reservada y envía el comprobante al administrador para completar la verificación.
+                  </p>
+                </div>
+              </div>
+
+              {space.paymentMethods.length > 0 && (
+                <div className="bg-white rounded-md border border-blue-100 p-3">
+                  <h4 className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">Métodos de pago disponibles</h4>
+                  <ul className="space-y-2">
+                    {space.paymentMethods.map((method, index) => (
+                      <li key={`${method.label}-${index}`} className="text-sm text-blue-800">
+                        <span className="font-medium">{method.label}:</span>
+                        <span className="ml-2 font-mono">{method.accountNumber}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <label className="flex items-start space-x-3 text-sm text-blue-900">
+                <input
+                  type="checkbox"
+                  checked={formData.acknowledgePayment}
+                  onChange={(e) => setFormData({ ...formData, acknowledgePayment: e.target.checked })}
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-blue-300 rounded"
+                  required
+                />
+                <span>
+                  Confirmo que conozco los métodos de pago y enviaré el comprobante para que el administrador pueda validar mi reserva.
+                </span>
+              </label>
+            </div>
+          )}
 
           {/* Show existing reservations for selected date */}
           {formData.date && (

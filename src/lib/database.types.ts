@@ -68,6 +68,11 @@ export type Database = {
           end_time: string
           event: string | null
           id: string
+          payment_proof_url: string | null
+          payment_status: string
+          payment_verified_at: string | null
+          payment_verified_by: string | null
+          requires_payment: boolean
           space_id: string
           start_time: string
           status: string
@@ -80,6 +85,11 @@ export type Database = {
           end_time: string
           event?: string | null
           id?: string
+          payment_proof_url?: string | null
+          payment_status?: string
+          payment_verified_at?: string | null
+          payment_verified_by?: string | null
+          requires_payment?: boolean
           space_id: string
           start_time: string
           status?: string
@@ -92,6 +102,11 @@ export type Database = {
           end_time?: string
           event?: string | null
           id?: string
+          payment_proof_url?: string | null
+          payment_status?: string
+          payment_verified_at?: string | null
+          payment_verified_by?: string | null
+          requires_payment?: boolean
           space_id?: string
           start_time?: string
           status?: string
@@ -126,6 +141,8 @@ export type Database = {
           name: string
           operating_hours_end: string
           operating_hours_start: string
+          payment_methods: Json | null
+          requires_payment: boolean
           rules: string[]
           type: string
           updated_at: string
@@ -140,6 +157,8 @@ export type Database = {
           name: string
           operating_hours_end: string
           operating_hours_start: string
+          payment_methods?: Json | null
+          requires_payment?: boolean
           rules?: string[]
           type: string
           updated_at?: string
@@ -154,6 +173,8 @@ export type Database = {
           name?: string
           operating_hours_end?: string
           operating_hours_start?: string
+          payment_methods?: Json | null
+          requires_payment?: boolean
           rules?: string[]
           type?: string
           updated_at?: string

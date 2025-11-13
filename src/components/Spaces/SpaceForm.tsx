@@ -21,10 +21,35 @@ const SpaceForm: React.FC<SpaceFormProps> = ({ space, onClose }) => {
     operatingHours: { start: '08:00', end: '18:00' },
     rules: [] as string[],
     isActive: true,
-    imageUrl: ''
+    imageUrl: '',
+    requiresPayment: false,
+    paymentMethods: [] as { label: string; accountNumber: string }[],
   });
 
   const [rulesInput, setRulesInput] = useState('');
+
+  const addPaymentMethod = () => {
+    setFormData(prev => ({
+      ...prev,
+      paymentMethods: [...prev.paymentMethods, { label: '', accountNumber: '' }]
+    }));
+  };
+
+  const updatePaymentMethod = (index: number, field: 'label' | 'accountNumber', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      paymentMethods: prev.paymentMethods.map((method, idx) =>
+        idx === index ? { ...method, [field]: value } : method
+      )
+    }));
+  };
+
+  const removePaymentMethod = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      paymentMethods: prev.paymentMethods.filter((_, idx) => idx !== index)
+    }));
+  };
 
   useEffect(() => {
     if (space) {
@@ -36,7 +61,11 @@ const SpaceForm: React.FC<SpaceFormProps> = ({ space, onClose }) => {
         operatingHours: space.operatingHours,
         rules: space.rules,
         isActive: space.isActive,
-        imageUrl: space.imageUrl || ''
+        imageUrl: space.imageUrl || '',
+        requiresPayment: space.requiresPayment,
+        paymentMethods: space.paymentMethods.length > 0
+          ? space.paymentMethods
+          : (space.requiresPayment ? [{ label: '', accountNumber: '' }] : [])
       });
       setRulesInput(space.rules.join('\n'));
     }
@@ -61,7 +90,21 @@ const SpaceForm: React.FC<SpaceFormProps> = ({ space, onClose }) => {
       .map(rule => rule.trim())
       .filter(rule => rule.length > 0);
 
-    const spaceData = { ...formData, rules };
+    const paymentMethods = formData.requiresPayment
+      ? formData.paymentMethods
+          .map(method => ({
+            label: method.label.trim(),
+            accountNumber: method.accountNumber.trim()
+          }))
+          .filter(method => method.label !== '' || method.accountNumber !== '')
+      : [];
+
+    const spaceData = {
+      ...formData,
+      rules,
+      paymentMethods,
+      requiresPayment: formData.requiresPayment,
+    };
 
     try {
       const wasSuccessful = space
@@ -194,7 +237,102 @@ const SpaceForm: React.FC<SpaceFormProps> = ({ space, onClose }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
+          </div>
+        </div>
+
+          <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Requiere pago para reservar
+                </label>
+                <p className="text-xs text-gray-500">
+                  Activa esta opción si el espacio necesita que los usuarios realicen un pago previo. Podrás definir los métodos disponibles.
+                </p>
+              </div>
+              <div className="mt-3 sm:mt-0 flex items-center">
+                <input
+                  type="checkbox"
+                  id="requiresPayment"
+                  checked={formData.requiresPayment}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setFormData(prev => ({
+                      ...prev,
+                      requiresPayment: checked,
+                      paymentMethods: checked
+                        ? (prev.paymentMethods.length > 0
+                          ? prev.paymentMethods
+                          : [{ label: '', accountNumber: '' }])
+                        : []
+                    }));
+                  }}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="requiresPayment" className="ml-2 block text-sm text-gray-700">
+                  {formData.requiresPayment ? 'Pago obligatorio' : 'Pago no requerido'}
+                </label>
+              </div>
             </div>
+
+            {formData.requiresPayment && (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  {formData.paymentMethods.map((method, index) => (
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-10 gap-3 items-start">
+                      <div className="md:col-span-4">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Método de pago
+                        </label>
+                        <input
+                          type="text"
+                          value={method.label}
+                          onChange={(e) => updatePaymentMethod(index, 'label', e.target.value)}
+                          placeholder="Banco, Nequi, Efecty, etc."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
+                      <div className="md:col-span-5">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Número o referencia
+                        </label>
+                        <input
+                          type="text"
+                          value={method.accountNumber}
+                          onChange={(e) => updatePaymentMethod(index, 'accountNumber', e.target.value)}
+                          placeholder="Cuenta, celular, referencia de pago"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
+                      <div className="md:col-span-1 flex md:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removePaymentMethod(index)}
+                          className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"
+                          disabled={formData.paymentMethods.length === 1}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addPaymentMethod}
+                  className="inline-flex items-center px-3 py-2 border border-dashed border-blue-300 text-sm font-medium text-blue-600 rounded-md hover:bg-blue-50"
+                >
+                  + Agregar método de pago
+                </button>
+
+                <p className="text-xs text-gray-500">
+                  Estos métodos se mostrarán a los usuarios al reservar el espacio.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>

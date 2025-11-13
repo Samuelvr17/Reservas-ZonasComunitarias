@@ -9,6 +9,11 @@ export interface User {
   isActive: boolean;
 }
 
+export interface PaymentMethod {
+  label: string;
+  accountNumber: string;
+}
+
 export interface Space {
   id: string;
   name: string;
@@ -22,7 +27,11 @@ export interface Space {
   rules: string[];
   isActive: boolean;
   imageUrl?: string;
+  requiresPayment: boolean;
+  paymentMethods: PaymentMethod[];
 }
+
+export type PaymentStatus = 'not_required' | 'pending' | 'submitted' | 'verified';
 
 export interface Reservation {
   id: string;
@@ -37,6 +46,24 @@ export interface Reservation {
   event: string;
   status: 'confirmed' | 'upcoming' | 'in-progress' | 'completed' | 'cancelled';
   createdAt: string;
+  requiresPayment: boolean;
+  paymentStatus: PaymentStatus;
+  paymentProofUrl?: string;
+  paymentVerifiedAt?: string | null;
+  paymentVerifiedBy?: string | null;
+}
+
+export interface AddReservationPayload {
+  spaceId: string;
+  spaceName: string;
+  userId: string;
+  userName: string;
+  userContact: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  event: string;
+  requiresPayment: boolean;
 }
 
 export interface AuthContextType {
@@ -82,7 +109,7 @@ export interface ReservationContextType {
   reservations: Reservation[];
   reservationsError: string | null;
   reloadReservations: () => Promise<void>;
-  addReservation: (reservation: Omit<Reservation, 'id' | 'createdAt' | 'status'>) => Promise<boolean>;
+  addReservation: (reservation: AddReservationPayload) => Promise<boolean>;
   cancelReservation: (id: string) => void;
   getUserReservations: (userId: string) => Reservation[];
   getSpaceReservations: (spaceId: string, date?: string) => Reservation[];
@@ -92,4 +119,12 @@ export interface ReservationContextType {
   maxConcurrentReservations: number | null;
   isSettingsLoading: boolean;
   settingsError: string | null;
+  updateReservationPayment: (
+    id: string,
+    updates: {
+      paymentStatus?: PaymentStatus;
+      paymentProofUrl?: string | null;
+    }
+  ) => Promise<void>;
+  uploadPaymentProof: (reservationId: string, file: File) => Promise<string>;
 }

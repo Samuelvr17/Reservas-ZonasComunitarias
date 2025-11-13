@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, X, Filter, Search, User } from 'lucide-react';
+import { Calendar, Clock, MapPin, X, Filter, Search, User, CreditCard, UploadCloud, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useReservations } from '../../context/ReservationContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, isToday, isTomorrow, isWithin24Hours, parseLocalDate } from '../../utils/dateUtils';
+import { PaymentStatus } from '../../types';
 
 interface ReservationsListProps {
   isAdminView?: boolean;
@@ -10,7 +11,18 @@ interface ReservationsListProps {
 
 const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false }) => {
   const { user } = useAuth();
-  const { reservations, reservationsError, reloadReservations, cancelReservation, getUserReservations } = useReservations();
+  const {
+    reservations,
+    reservationsError,
+    reloadReservations,
+    cancelReservation,
+    getUserReservations,
+    updateReservationPayment,
+    uploadPaymentProof,
+  } = useReservations();
+  const [paymentProofs, setPaymentProofs] = useState<Record<string, File | null>>({});
+  const [paymentMessages, setPaymentMessages] = useState<Record<string, { type: 'success' | 'error'; message: string }>>({});
+  const [processingPaymentId, setProcessingPaymentId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
 
@@ -31,6 +43,108 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
+
+  const paymentStatusConfig: Record<PaymentStatus, { label: string; badge: string; description: string }> = {
+    not_required: {
+      label: 'Pago no requerido',
+      badge: 'bg-gray-100 text-gray-800',
+      description: 'Este espacio no requiere pagos para confirmar la reserva.',
+    },
+    pending: {
+      label: 'Pago pendiente',
+      badge: 'bg-yellow-100 text-yellow-800',
+      description: 'Aún no se ha registrado un comprobante de pago para esta reserva.',
+    },
+    submitted: {
+      label: 'Comprobante recibido',
+      badge: 'bg-blue-100 text-blue-800',
+      description: 'Se cargó un comprobante de pago y está pendiente de verificación.',
+    },
+    verified: {
+      label: 'Pago verificado',
+      badge: 'bg-green-100 text-green-800',
+      description: 'El administrador verificó el pago asociado a la reserva.',
+    },
+  };
+
+  const clearPaymentMessage = (reservationId: string) => {
+    setPaymentMessages(prev => {
+      const { [reservationId]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const handlePaymentFileChange = (reservationId: string, files: FileList | null) => {
+    const file = files && files.length > 0 ? files[0] : null;
+    setPaymentProofs(prev => ({
+      ...prev,
+      [reservationId]: file,
+    }));
+    clearPaymentMessage(reservationId);
+  };
+
+  const setPaymentMessage = (reservationId: string, type: 'success' | 'error', message: string) => {
+    setPaymentMessages(prev => ({
+      ...prev,
+      [reservationId]: { type, message },
+    }));
+  };
+
+  const handleVerifyPayment = async (reservation: typeof filteredReservations[number]) => {
+    setProcessingPaymentId(reservation.id);
+    clearPaymentMessage(reservation.id);
+
+    try {
+      let proofUrl = reservation.paymentProofUrl ?? null;
+      const selectedFile = paymentProofs[reservation.id] ?? null;
+
+      if (!selectedFile && !proofUrl) {
+        setPaymentMessage(reservation.id, 'error', 'Adjunta un comprobante antes de verificar el pago.');
+        setProcessingPaymentId(null);
+        return;
+      }
+
+      if (selectedFile) {
+        proofUrl = await uploadPaymentProof(reservation.id, selectedFile);
+        setPaymentProofs(prev => ({ ...prev, [reservation.id]: null }));
+      }
+
+      await updateReservationPayment(reservation.id, {
+        paymentStatus: 'verified',
+        paymentProofUrl: proofUrl,
+      });
+
+      setPaymentMessage(reservation.id, 'success', 'Pago verificado correctamente.');
+    } catch (error) {
+      console.error(error);
+      setPaymentMessage(
+        reservation.id,
+        'error',
+        error instanceof Error ? error.message : 'No se pudo verificar el pago.'
+      );
+    } finally {
+      setProcessingPaymentId(null);
+    }
+  };
+
+  const handleMarkPaymentPending = async (reservationId: string) => {
+    setProcessingPaymentId(reservationId);
+    clearPaymentMessage(reservationId);
+
+    try {
+      await updateReservationPayment(reservationId, { paymentStatus: 'pending' });
+      setPaymentMessage(reservationId, 'success', 'El pago se marcó como pendiente nuevamente.');
+    } catch (error) {
+      console.error(error);
+      setPaymentMessage(
+        reservationId,
+        'error',
+        error instanceof Error ? error.message : 'No se pudo actualizar el estado del pago.'
+      );
+    } finally {
+      setProcessingPaymentId(null);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     const colors = {
@@ -136,6 +250,10 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
         <div className="space-y-4">
           {filteredReservations.map(reservation => {
             const eventName = reservation.event ?? '';
+            const paymentInfo = paymentStatusConfig[reservation.paymentStatus] ?? paymentStatusConfig.pending;
+            const selectedFile = paymentProofs[reservation.id] ?? null;
+            const paymentMessage = paymentMessages[reservation.id];
+
             return (
               <div key={reservation.id} className="bg-white rounded-lg shadow p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -194,6 +312,98 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
                     Reservado el {formatDate(reservation.createdAt)}
                   </div>
                 </div>
+
+                {reservation.requiresPayment && (
+                  <div className="mt-4 border-t border-gray-100 pt-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex items-center space-x-2">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${paymentInfo.badge}`}>
+                          <CreditCard className="h-3 w-3 mr-2" />
+                          {paymentInfo.label}
+                        </span>
+                        {reservation.paymentVerifiedAt && (
+                          <span className="text-xs text-gray-500">
+                            Verificado el {new Date(reservation.paymentVerifiedAt).toLocaleString('es-ES')}
+                          </span>
+                        )}
+                      </div>
+                      {reservation.paymentProofUrl && (
+                        <a
+                          href={reservation.paymentProofUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          Ver comprobante cargado
+                        </a>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-gray-600">{paymentInfo.description}</p>
+
+                    {isAdminView ? (
+                      <div className="space-y-3">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-3 space-y-3 lg:space-y-0">
+                          <label className="flex items-center space-x-2 text-sm text-gray-700">
+                            <UploadCloud className="h-4 w-4" />
+                            <span>Comprobante (imagen o PDF)</span>
+                          </label>
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            onChange={(e) => handlePaymentFileChange(reservation.id, e.target.files)}
+                            className="text-sm"
+                          />
+                          {selectedFile && (
+                            <span className="text-xs text-gray-500 truncate max-w-xs">
+                              Archivo seleccionado: {selectedFile.name}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleVerifyPayment(reservation)}
+                            disabled={processingPaymentId === reservation.id}
+                            className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            {processingPaymentId === reservation.id ? 'Guardando...' : 'Verificar pago'}
+                          </button>
+                          {reservation.paymentStatus !== 'pending' && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkPaymentPending(reservation.id)}
+                              disabled={processingPaymentId === reservation.id}
+                              className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              <AlertCircle className="h-4 w-4 mr-2" />
+                              Marcar como pendiente
+                            </button>
+                          )}
+                        </div>
+
+                        {paymentMessage && (
+                          <div
+                            className={`text-sm ${
+                              paymentMessage.type === 'success'
+                                ? 'text-green-700'
+                                : 'text-red-600'
+                            }`}
+                          >
+                            {paymentMessage.message}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600">
+                        El administrador verificará tu comprobante de pago para completar la reserva.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {canCancelReservation(reservation) && (
                   <button

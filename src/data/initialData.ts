@@ -15,7 +15,9 @@ export const initialSpaces: Space[] = [
       'No fumar en las instalaciones'
     ],
     isActive: true,
-    imageUrl: 'https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg'
+    imageUrl: 'https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg',
+    requiresPayment: false,
+    paymentMethods: [],
   },
   {
     id: '2',
@@ -31,7 +33,18 @@ export const initialSpaces: Space[] = [
       'No se permite música después de las 22:00'
     ],
     isActive: true,
-    imageUrl: 'https://images.pexels.com/photos/1395967/pexels-photo-1395967.jpeg'
+    imageUrl: 'https://images.pexels.com/photos/1395967/pexels-photo-1395967.jpeg',
+    requiresPayment: true,
+    paymentMethods: [
+      {
+        label: 'Transferencia bancaria - Banco Nacional',
+        accountNumber: 'Cuenta Corriente 0123456789'
+      },
+      {
+        label: 'Nequi',
+        accountNumber: '+57 300 987 6543'
+      }
+    ],
   },
   {
     id: '3',
@@ -47,7 +60,9 @@ export const initialSpaces: Space[] = [
       'Depositar basura en contenedores'
     ],
     isActive: true,
-    imageUrl: 'https://images.pexels.com/photos/1260968/pexels-photo-1260968.jpeg'
+    imageUrl: 'https://images.pexels.com/photos/1260968/pexels-photo-1260968.jpeg',
+    requiresPayment: false,
+    paymentMethods: [],
   },
   {
     id: '4',
@@ -63,7 +78,14 @@ export const initialSpaces: Space[] = [
       'Uso de micrófono solo con autorización'
     ],
     isActive: true,
-    imageUrl: 'https://images.pexels.com/photos/2774556/pexels-photo-2774556.jpeg'
+    imageUrl: 'https://images.pexels.com/photos/2774556/pexels-photo-2774556.jpeg',
+    requiresPayment: true,
+    paymentMethods: [
+      {
+        label: 'Pago en ventanilla - Cuenta de ahorros 5566778899',
+        accountNumber: 'Banco Comunitario'
+      }
+    ],
   }
 ];
 
@@ -91,6 +113,11 @@ export const sampleReservations: Reservation[] = [
     endTime: '12:00',
     event: 'Partido de fútbol vecinos',
     status: 'confirmed',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    requiresPayment: false,
+    paymentStatus: 'not_required',
+    paymentProofUrl: undefined,
+    paymentVerifiedAt: null,
+    paymentVerifiedBy: null,
   }
 ];

@@ -77,7 +77,7 @@ export const ReservationProvider: React.FC<ReservationProviderProps> = ({ childr
       ? `
         *,
         spaces(name),
-        profiles(full_name, phone, identification_number, email)
+        user_profile:profiles!reservations_user_id_fkey(full_name, phone, identification_number, email)
       `
       : `
         *,
@@ -99,7 +99,7 @@ export const ReservationProvider: React.FC<ReservationProviderProps> = ({ childr
     if (data) {
       const formattedReservations: Reservation[] = data.map(reservation => {
         const profile = user.role === 'admin'
-          ? (reservation as any)?.profiles as { full_name?: string; phone?: string } | null | undefined
+          ? (reservation as any)?.user_profile as { full_name?: string; phone?: string } | null | undefined
           : null;
 
         return {
@@ -221,7 +221,7 @@ export const ReservationProvider: React.FC<ReservationProviderProps> = ({ childr
       ? `
         *,
         spaces(name),
-        profiles(full_name, phone, identification_number, email)
+        user_profile:profiles!reservations_user_id_fkey(full_name, phone, identification_number, email)
       `
       : `
         *,
@@ -246,7 +246,7 @@ export const ReservationProvider: React.FC<ReservationProviderProps> = ({ childr
     }
 
     return data.map(reservation => {
-      const profile = (reservation as any)?.profiles as { full_name?: string; phone?: string } | null | undefined;
+      const profile = (reservation as any)?.user_profile as { full_name?: string; phone?: string } | null | undefined;
 
       return {
         id: reservation.id,

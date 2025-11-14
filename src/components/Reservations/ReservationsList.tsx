@@ -127,6 +127,40 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
     }
   };
 
+  const handleSubmitPaymentProof = async (reservation: typeof filteredReservations[number]) => {
+    setProcessingPaymentId(reservation.id);
+    clearPaymentMessage(reservation.id);
+
+    try {
+      const selectedFile = paymentProofs[reservation.id] ?? null;
+
+      if (!selectedFile) {
+        setPaymentMessage(reservation.id, 'error', 'Selecciona un archivo para adjuntar como comprobante.');
+        setProcessingPaymentId(null);
+        return;
+      }
+
+      const proofUrl = await uploadPaymentProof(reservation.id, selectedFile);
+
+      await updateReservationPayment(reservation.id, {
+        paymentStatus: 'submitted',
+        paymentProofUrl: proofUrl,
+      });
+
+      setPaymentProofs(prev => ({ ...prev, [reservation.id]: null }));
+      setPaymentMessage(reservation.id, 'success', 'Comprobante enviado correctamente. Espera la validación del administrador.');
+    } catch (error) {
+      console.error(error);
+      setPaymentMessage(
+        reservation.id,
+        'error',
+        error instanceof Error ? error.message : 'No se pudo subir el comprobante. Intenta nuevamente.'
+      );
+    } finally {
+      setProcessingPaymentId(null);
+    }
+  };
+
   const handleMarkPaymentPending = async (reservationId: string) => {
     setProcessingPaymentId(reservationId);
     clearPaymentMessage(reservationId);
@@ -398,9 +432,57 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
                         )}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-600">
-                        El administrador verificará tu comprobante de pago para completar la reserva.
-                      </p>
+                      <div className="space-y-3">
+                        {reservation.paymentStatus !== 'verified' && (
+                          <>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-3 sm:space-y-0">
+                              <label className="flex items-center space-x-2 text-sm text-gray-700">
+                                <UploadCloud className="h-4 w-4" />
+                                <span>Sube tu comprobante (imagen o PDF)</span>
+                              </label>
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                onChange={(e) => handlePaymentFileChange(reservation.id, e.target.files)}
+                                className="text-sm"
+                              />
+                              {selectedFile && (
+                                <span className="text-xs text-gray-500 truncate max-w-xs">
+                                  Archivo seleccionado: {selectedFile.name}
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSubmitPaymentProof(reservation)}
+                              disabled={processingPaymentId === reservation.id}
+                              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              <UploadCloud className="h-4 w-4 mr-2" />
+                              {processingPaymentId === reservation.id ? 'Enviando...' : 'Enviar comprobante'}
+                            </button>
+                          </>
+                        )}
+
+                        <p className="text-sm text-gray-600">
+                          {reservation.paymentStatus === 'verified'
+                            ? 'Tu pago fue verificado. ¡Gracias!'
+                            : 'El administrador verificará tu comprobante de pago para completar la reserva.'}
+                        </p>
+
+                        {paymentMessage && (
+                          <div
+                            className={`text-sm ${
+                              paymentMessage.type === 'success'
+                                ? 'text-green-700'
+                                : 'text-red-600'
+                            }`}
+                          >
+                            {paymentMessage.message}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}

@@ -69,8 +69,9 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
 
   const clearPaymentMessage = (reservationId: string) => {
     setPaymentMessages(prev => {
-      const { [reservationId]: _, ...rest } = prev;
-      return rest;
+      const updatedMessages = { ...prev };
+      delete updatedMessages[reservationId];
+      return updatedMessages;
     });
   };
 
@@ -99,12 +100,18 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
       const selectedFile = paymentProofs[reservation.id] ?? null;
 
       if (!selectedFile && !proofUrl) {
-        setPaymentMessage(reservation.id, 'error', 'Adjunta un comprobante antes de verificar el pago.');
+        setPaymentMessage(
+          reservation.id,
+          'error',
+          isAdminView
+            ? 'Aún no hay un comprobante cargado para esta reserva.'
+            : 'Adjunta un comprobante antes de verificar el pago.'
+        );
         setProcessingPaymentId(null);
         return;
       }
 
-      if (selectedFile) {
+      if (selectedFile && !isAdminView) {
         proofUrl = await uploadPaymentProof(reservation.id, selectedFile);
         setPaymentProofs(prev => ({ ...prev, [reservation.id]: null }));
       }
@@ -287,6 +294,7 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
             const paymentInfo = paymentStatusConfig[reservation.paymentStatus] ?? paymentStatusConfig.pending;
             const selectedFile = paymentProofs[reservation.id] ?? null;
             const paymentMessage = paymentMessages[reservation.id];
+            const hasPaymentProof = Boolean(reservation.paymentProofUrl);
 
             return (
               <div key={reservation.id} className="bg-white rounded-lg shadow p-6">
@@ -378,29 +386,21 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
 
                     {isAdminView ? (
                       <div className="space-y-3">
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-3 space-y-3 lg:space-y-0">
-                          <label className="flex items-center space-x-2 text-sm text-gray-700">
-                            <UploadCloud className="h-4 w-4" />
-                            <span>Comprobante (imagen o PDF)</span>
-                          </label>
-                          <input
-                            type="file"
-                            accept="image/*,application/pdf"
-                            onChange={(e) => handlePaymentFileChange(reservation.id, e.target.files)}
-                            className="text-sm"
-                          />
-                          {selectedFile && (
-                            <span className="text-xs text-gray-500 truncate max-w-xs">
-                              Archivo seleccionado: {selectedFile.name}
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-sm text-gray-600">
+                          El comprobante de pago debe ser cargado por la persona que realizó la reserva.
+                        </p>
+
+                        {!hasPaymentProof && (
+                          <div className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                            Aún no se ha recibido un comprobante para esta reserva.
+                          </div>
+                        )}
 
                         <div className="flex flex-wrap gap-3">
                           <button
                             type="button"
                             onClick={() => handleVerifyPayment(reservation)}
-                            disabled={processingPaymentId === reservation.id}
+                            disabled={!hasPaymentProof || processingPaymentId === reservation.id}
                             className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
                           >
                             <CheckCircle2 className="h-4 w-4 mr-2" />

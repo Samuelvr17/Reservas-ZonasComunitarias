@@ -135,6 +135,7 @@ const ReservationsList: React.FC<ReservationsListProps> = ({ isAdminView = false
   };
 
   const handleSubmitPaymentProof = async (reservation: typeof filteredReservations[number]) => {
+    console.log('[ReservationsList] handleSubmitPaymentProof user:', user);
     setProcessingPaymentId(reservation.id);
     clearPaymentMessage(reservation.id);
 
